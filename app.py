@@ -14,93 +14,87 @@ if st.button("Analyze ESG Performance"):
     if company == "":
         st.warning("Please enter a company ticker.")
     else:
-        with st.spinner("Fetching real-time financial data..."):
+        with st.spinner("Fetching market data..."):
 
-            stock = yf.Ticker(company)
-            info = stock.info
-            hist = stock.history(period="1y")
+            try:
+                stock = yf.Ticker(company)
+                hist = stock.history(period="1y")
 
-            if hist.empty:
-                st.error("Invalid ticker or no data available.")
-            else:
-
-                # -------------------------
-                # Financial Metrics
-                # -------------------------
-
-                market_cap = info.get("marketCap", 0)
-                debt = info.get("totalDebt", 0)
-                revenue = info.get("totalRevenue", 0)
-                net_income = info.get("netIncomeToCommon", 0)
-
-                # Volatility calculation
-                hist["returns"] = hist["Close"].pct_change()
-                volatility = hist["returns"].std() * np.sqrt(252)
-
-                # Profit Margin
-                if revenue != 0:
-                    profit_margin = net_income / revenue
+                if hist.empty:
+                    st.error("Invalid ticker or no data available.")
                 else:
-                    profit_margin = 0
 
-                # Debt Ratio
-                if market_cap != 0:
-                    debt_ratio = debt / market_cap
-                else:
-                    debt_ratio = 0
+                    # -------------------------
+                    # Volatility
+                    # -------------------------
+                    hist["returns"] = hist["Close"].pct_change()
+                    volatility = hist["returns"].std() * np.sqrt(252)
 
-                # -------------------------
-                # ESG Proxy Score Calculation
-                # -------------------------
+                    # -------------------------
+                    # Price Growth
+                    # -------------------------
+                    start_price = hist["Close"].iloc[0]
+                    end_price = hist["Close"].iloc[-1]
+                    growth = (end_price - start_price) / start_price
 
-                esg_score = (
-                    (1 - volatility) * 30 +
-                    (1 - debt_ratio) * 25 +
-                    (profit_margin) * 25 +
-                    (np.log1p(market_cap) / 30) * 20
-                )
+                    # -------------------------
+                    # Stability Score
+                    # -------------------------
+                    stability = 1 - volatility
 
-                esg_score = np.clip(esg_score * 10, 0, 100)
+                    # -------------------------
+                    # ESG Proxy Score
+                    # -------------------------
+                    esg_score = (
+                        stability * 40 +
+                        growth * 30 +
+                        (1 - volatility) * 30
+                    )
 
-                st.subheader(f"📊 ESG Proxy Score: {round(esg_score,2)} / 100")
+                    esg_score = np.clip(esg_score * 100, 0, 100)
 
-                # -------------------------
-                # Consequence Analysis
-                # -------------------------
+                    st.subheader(f"📊 ESG Proxy Score: {round(esg_score,2)} / 100")
 
-                if esg_score >= 75:
-                    risk = "Low"
-                    investor_confidence = "High"
-                    regulatory_pressure = "Low"
-                elif esg_score >= 50:
-                    risk = "Moderate"
-                    investor_confidence = "Stable"
-                    regulatory_pressure = "Medium"
-                else:
-                    risk = "High"
-                    investor_confidence = "Low"
-                    regulatory_pressure = "High"
+                    # -------------------------
+                    # Consequence Analysis
+                    # -------------------------
 
-                st.markdown("### 📉 Impact Analysis")
-                st.write(f"Financial Risk Level: {risk}")
-                st.write(f"Investor Confidence: {investor_confidence}")
-                st.write(f"Regulatory Exposure: {regulatory_pressure}")
+                    if esg_score >= 75:
+                        risk = "Low"
+                        investor_confidence = "High"
+                        regulatory_pressure = "Low"
+                    elif esg_score >= 50:
+                        risk = "Moderate"
+                        investor_confidence = "Stable"
+                        regulatory_pressure = "Medium"
+                    else:
+                        risk = "High"
+                        investor_confidence = "Low"
+                        regulatory_pressure = "High"
 
-                # -------------------------
-                # AI Insight
-                # -------------------------
+                    st.markdown("### 📉 Impact Analysis")
+                    st.write(f"Financial Risk Level: {risk}")
+                    st.write(f"Investor Confidence: {investor_confidence}")
+                    st.write(f"Regulatory Exposure: {regulatory_pressure}")
 
-                st.markdown("### 🤖 AI Sustainability Insight")
+                    # -------------------------
+                    # AI Insight
+                    # -------------------------
 
-                insight = f"""
-                Based on real-time market signals, {company} shows an ESG proxy score of {round(esg_score,2)}.
+                    st.markdown("### 🤖 AI Sustainability Insight")
 
-                Market volatility level: {round(volatility,3)}.
-                Debt ratio: {round(debt_ratio,3)}.
-                Profit margin: {round(profit_margin,3)}.
+                    insight = f"""
+                    Based on 1-year market behavior, {company} shows an ESG proxy score of {round(esg_score,2)}.
 
-                Higher volatility and leverage increase governance and environmental risk signals.
-                Stable profitability and strong market capitalization improve ESG stability outlook.
-                """
+                    Annual volatility: {round(volatility,3)}.
+                    Price growth over 1 year: {round(growth*100,2)}%.
 
-                st.write(insight)
+                    Lower volatility and consistent price growth
+                    indicate stronger governance stability and
+                    lower sustainability-related risk exposure.
+                    """
+
+                    st.write(insight)
+
+            except Exception:
+                st.error("Data fetch failed. Please try again later.")
