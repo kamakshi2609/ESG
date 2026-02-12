@@ -2,17 +2,18 @@ import streamlit as st
 import yfinance as yf
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 
-st.set_page_config(page_title="Real-Time ESG Proxy Analyzer", layout="centered")
+st.set_page_config(page_title="AI ESG Market Analytics", layout="wide")
 
-st.title("🌍 AI-Based Real-Time ESG Proxy Analyzer")
+st.title("🌍 AI-Driven Real-Time ESG Market Analytics Dashboard")
 
 company = st.text_input("Enter Company Ticker (e.g., RELIANCE.NS, TCS.NS, AAPL)")
 
 if st.button("Analyze ESG Performance"):
 
     if company == "":
-        st.warning("Please enter a company ticker.")
+        st.warning("Please enter a valid ticker.")
     else:
         with st.spinner("Fetching real-time market data..."):
 
@@ -25,42 +26,52 @@ if st.button("Analyze ESG Performance"):
                 else:
 
                     # -------------------------
-                    # Calculate Returns
+                    # Feature Engineering
                     # -------------------------
                     hist["returns"] = hist["Close"].pct_change()
 
                     volatility = hist["returns"].std() * np.sqrt(252)
                     mean_return = hist["returns"].mean() * 252
-
                     sharpe_ratio = mean_return / (volatility + 1e-6)
 
-                    # -------------------------
-                    # Normalize Metrics (0-1 Scale)
-                    # -------------------------
+                    # Normalize Scores
                     vol_score = 1 / (1 + volatility * 8)
+                    return_score = np.clip((mean_return + 0.2) / 0.4, 0, 1)
+                    sharpe_score = np.clip((sharpe_ratio + 2) / 4, 0, 1)
 
-                    return_score = (mean_return + 0.2) / 0.4
-                    return_score = np.clip(return_score, 0, 1)
-
-                    sharpe_score = (sharpe_ratio + 2) / 4
-                    sharpe_score = np.clip(sharpe_score, 0, 1)
-
-                    # -------------------------
-                    # ESG Proxy Score
-                    # -------------------------
                     esg_score = (
                         vol_score * 35 +
                         return_score * 30 +
                         sharpe_score * 35
                     )
 
-                    esg_score = np.clip(esg_score, 0, 100)
-
-                    st.subheader(f"📊 ESG Proxy Score: {round(esg_score,2)} / 100")
+                    esg_score = float(np.clip(esg_score, 0, 100))
 
                     # -------------------------
-                    # Consequence Analysis
+                    # ESG Gauge
                     # -------------------------
+                    st.markdown("## 🌍 ESG Proxy Score")
+
+                    fig = go.Figure(go.Indicator(
+                        mode="gauge+number",
+                        value=esg_score,
+                        title={'text': "ESG Proxy Score"},
+                        gauge={
+                            'axis': {'range': [0, 100]},
+                            'steps': [
+                                {'range': [0, 50], 'color': "red"},
+                                {'range': [50, 75], 'color': "yellow"},
+                                {'range': [75, 100], 'color': "green"}
+                            ],
+                        }
+                    ))
+
+                    st.plotly_chart(fig, use_container_width=True)
+
+                    # -------------------------
+                    # Impact Analysis
+                    # -------------------------
+                    st.markdown("## 📉 Impact Analysis")
 
                     if esg_score >= 75:
                         risk = "Low"
@@ -75,39 +86,53 @@ if st.button("Analyze ESG Performance"):
                         investor_confidence = "Low"
                         regulatory_pressure = "High"
 
-                    st.markdown("### 📉 Impact Analysis")
-                    st.write(f"Financial Risk Level: {risk}")
-                    st.write(f"Investor Confidence: {investor_confidence}")
-                    st.write(f"Regulatory Exposure: {regulatory_pressure}")
+                    col1, col2, col3 = st.columns(3)
+                    col1.metric("Financial Risk", risk)
+                    col2.metric("Investor Confidence", investor_confidence)
+                    col3.metric("Regulatory Exposure", regulatory_pressure)
 
                     # -------------------------
-                    # AI Insight Report
+                    # Charts Section
                     # -------------------------
 
-                    st.markdown("### 🤖 AI Sustainability Insight")
+                    st.markdown("## 📊 Market Behaviour Analysis")
+
+                    # Moving Average
+                    hist["MA50"] = hist["Close"].rolling(50).mean()
+
+                    st.subheader("📈 Price Trend with 50-Day Moving Average")
+                    st.line_chart(hist[["Close", "MA50"]])
+
+                    # Rolling Volatility
+                    hist["rolling_vol"] = hist["returns"].rolling(30).std() * np.sqrt(252)
+                    st.subheader("⚠ Rolling Volatility (Risk Trend)")
+                    st.line_chart(hist["rolling_vol"])
+
+                    # Cumulative Returns
+                    hist["cumulative_return"] = (1 + hist["returns"]).cumprod()
+                    st.subheader("💰 Cumulative Return (₹1 Investment Growth)")
+                    st.line_chart(hist["cumulative_return"])
+
+                    # -------------------------
+                    # AI Insight
+                    # -------------------------
+                    st.markdown("## 🤖 AI Sustainability Insight")
 
                     insight = f"""
-                    Based on 1-year market behavior, {company} demonstrates:
+                    Based on 1-year market performance, {company} demonstrates:
 
-                    • Annual Volatility: {round(volatility,3)}
-                    • Annual Return: {round(mean_return*100,2)}%
-                    • Sharpe Ratio: {round(sharpe_ratio,2)}
+                    • Annual Volatility: {round(volatility,3)}  
+                    • Annual Return: {round(mean_return*100,2)}%  
+                    • Sharpe Ratio: {round(sharpe_ratio,2)}  
 
                     The ESG proxy score of {round(esg_score,2)} reflects
-                    market stability, risk-adjusted returns, and financial resilience.
+                    risk-adjusted stability and market-based sustainability signals.
 
-                    Lower volatility and higher Sharpe ratio suggest
-                    stronger governance discipline and sustainable growth signals.
+                    Companies with lower volatility and higher Sharpe ratios
+                    indicate stronger governance discipline and long-term resilience.
                     """
 
                     st.write(insight)
 
-                    # -------------------------
-                    # Show Price Chart
-                    # -------------------------
-
-                    st.markdown("### 📈 1-Year Stock Price Trend")
-                    st.line_chart(hist["Close"])
-
             except Exception:
-                st.error("Data fetch failed. Please try another ticker or try later.")
+                st.error("Data fetch failed. Try another ticker or try again later.")
